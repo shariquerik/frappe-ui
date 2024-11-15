@@ -12,7 +12,7 @@
         {{ trialMessage }}
       </div>
     </div>
-    <Button :label="'Upgrade plan'" theme="red" @click="emit('upgradePlan')">
+    <Button :label="'Upgrade plan'" theme="red" @click="openBillingPage">
       <template #prefix>
         <LightningIcon class="size-4" />
       </template>
@@ -23,8 +23,7 @@
 import LightningIcon from './icons/LightningIcon.vue'
 import FeatherIcon from '../FeatherIcon.vue'
 import Button from '../Button.vue'
-import { calculateTrialEndDays } from './utils.js'
-import { createResource } from '../../resources/index.js'
+import { createResource } from '../../resources'
 import { ref, computed } from 'vue'
 
 const props = defineProps({
@@ -33,8 +32,6 @@ const props = defineProps({
     default: false,
   },
 })
-
-const emit = defineEmits(['upgradePlan'])
 
 const trialEndDays = ref(0)
 const showBanner = ref(false)
@@ -57,4 +54,18 @@ createResource({
       window.setup_complete && data.plan.is_trial_plan && trialEndDays.value > 0
   },
 })
+
+function calculateTrialEndDays(trialEndDate) {
+  if (!trialEndDate) return 0
+
+  trialEndDate = new Date(trialEndDate)
+  const today = new Date()
+  const diffTime = trialEndDate - today
+  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
+  return diffDays
+}
+
+function openBillingPage() {
+  window.location.href = '/billing'
+}
 </script>
