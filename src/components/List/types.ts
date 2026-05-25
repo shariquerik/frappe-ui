@@ -88,6 +88,25 @@ export interface ListRootContext<Key extends ListKey = ListKey> {
   activate: (value: Key) => void
   selectAll: () => void
   clear: () => void
+  /**
+   * Drag-reorder coordination. <List.Item :draggable> writes via
+   * `beginDrag` / `setDropTarget` / `endDrag`; Root reads on `drop` to
+   * compute the visible-index `from`/`to` and emit `@reorder`.
+   */
+  dragSourceId: { value: string | null }
+  dropTargetId: { value: string | null }
+  beginDrag: (id: string) => void
+  setDropTarget: (id: string) => void
+  endDrag: (didDrop: boolean) => void
+}
+
+export interface ListReorderPayload<Key extends ListKey = ListKey> {
+  /** Source row's positional index in the currently visible item list. */
+  from: number
+  /** Drop target's positional index in the currently visible item list. */
+  to: number
+  /** Source item's `:value`. */
+  value: Key
 }
 
 /**
@@ -140,6 +159,25 @@ export interface ListItemProps<
   value?: Key
   /** Skip the item in keyboard navigation and selection. */
   disabled?: boolean
+  /**
+   * Make this row a native HTML5 drag source and drop target.
+   * Disabled items cannot be dragged and cannot accept a drop.
+   * Pair with `@reorder` on <List.Root> to persist the new order.
+   */
+  draggable?: boolean
+}
+
+/**
+ * Optional drop-zone context provided by <List.Group> (Slice 3) so that a
+ * drop into a collapsed group can be rejected. Slices 1+2/5 do not provide
+ * this context — defensive consumers (and <List.Item>) read it via
+ * `useListDropZoneContext()`, which returns `null` when no group wraps the
+ * item. Decoupled from <List.Group>'s internal shape so Slice 5 does not
+ * depend on Slice 3's source.
+ */
+export interface ListDropZoneContext {
+  /** Whether the wrapping group is currently collapsed. */
+  collapsed: { value: boolean } | { value: false }
 }
 
 export interface ListGroupProps extends /* @vue-ignore */ PrimitiveProps {

@@ -27,6 +27,7 @@ import type {
   ListGroupEntry,
   ListItemEntry,
   ListKey,
+  ListReorderPayload,
   ListRootContext,
   ListRootProps,
 } from '../types'
@@ -41,6 +42,7 @@ const props = withDefaults(defineProps<ListRootProps>(), {
 const emit = defineEmits<{
   (e: 'update:selected', value: Set<Key>): void
   (e: 'activate', value: Key): void
+  (e: 'reorder', payload: ListReorderPayload<Key>): void
 }>()
 
 const selectedModel = defineModel<Set<Key>>('selected', {
@@ -309,6 +311,46 @@ function select(value: Key, event?: MouseEvent | KeyboardEvent) {
   toggle(value)
 }
 
+// --- Drag reorder ---------------------------------------------------------
+// At most one item is the source / target at a time. Items write via the
+// context handlers below; on `drop`, the active target's item resolves
+// `from`/`to` from the current `orderedIds` snapshot and calls `endDrag`.
+const dragSourceId = ref<string | null>(null)
+const dropTargetId = ref<string | null>(null)
+
+function beginDrag(id: string) {
+  const entry = items.get(id)
+  if (!entry || entry.disabled) return
+  dragSourceId.value = id
+}
+
+function setDropTarget(id: string) {
+  if (dragSourceId.value === null) return
+  const entry = items.get(id)
+  // Disabled items cannot anchor a drop. Leave any previous target in
+  // place — keeps the visual hover state on the last valid row.
+  if (!entry || entry.disabled) return
+  dropTargetId.value = id
+}
+
+function endDrag(didDrop: boolean) {
+  const sourceId = dragSourceId.value
+  const targetId = dropTargetId.value
+  dragSourceId.value = null
+  dropTargetId.value = null
+  if (!didDrop || !sourceId || !targetId || sourceId === targetId) return
+
+  const source = items.get(sourceId)
+  if (!source || source.value === undefined) return
+
+  const ids = orderedIds.value
+  const from = ids.indexOf(sourceId)
+  const to = ids.indexOf(targetId)
+  if (from === -1 || to === -1) return
+
+  emit('reorder', { from, to, value: source.value } as ListReorderPayload<Key>)
+}
+
 // Typeahead buffer — flushed after a short idle so multi-char prefix matches
 // behave like the native listbox pattern. Only allocated when typeahead is on.
 let typeaheadQuery = ''
@@ -478,6 +520,11 @@ const context: ListRootContext<Key> = {
   activate,
   selectAll,
   clear,
+  dragSourceId,
+  dropTargetId,
+  beginDrag,
+  setDropTarget,
+  endDrag,
 }
 
 provide(LIST_ROOT_CONTEXT, context)

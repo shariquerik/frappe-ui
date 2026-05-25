@@ -8,8 +8,16 @@ import {
   watch,
 } from 'vue'
 import { Primitive } from '../internal/asChild'
-import { LIST_GROUP_CONTEXT, useListRootContext } from '../internal/context'
-import type { ListGroupContext, ListGroupProps } from '../types'
+import {
+  LIST_DROP_ZONE_CONTEXT,
+  LIST_GROUP_CONTEXT,
+  useListRootContext,
+} from '../internal/context'
+import type {
+  ListDropZoneContext,
+  ListGroupContext,
+  ListGroupProps,
+} from '../types'
 
 const props = withDefaults(defineProps<ListGroupProps>(), {
   as: 'li',
@@ -42,6 +50,11 @@ const groupContext: ListGroupContext = {
   setLabelledBySlot,
 }
 provide(LIST_GROUP_CONTEXT, groupContext)
+
+// Slice 5 contract: expose collapsed state to <List.Item :draggable> so a
+// drop into a collapsed group is rejected.
+const dropZoneContext: ListDropZoneContext = { collapsed }
+provide(LIST_DROP_ZONE_CONTEXT, dropZoneContext)
 
 ctx.registerGroup({ id, collapsed: collapsed.value })
 

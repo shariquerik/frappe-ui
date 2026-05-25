@@ -57,4 +57,6 @@ export type {
   ListSelection,
   ListSort,
   ListSortDirection,
+  ListReorderPayload,
+  ListDropZoneContext,
 } from './types'
