@@ -126,6 +126,81 @@ Tailwind variants:
 />
 ```
 
+## Grouping
+
+`<List.Group>` wraps a set of `<List.Item>`s. The group owns its `collapsed`
+state via `v-model:collapsed` — no row-data mutation, and items keep their
+identity (and selection) across collapse/expand cycles.
+
+`<List.Root>`'s keyboard navigation and range-select are group-aware:
+
+- **Up / Down** crosses group boundaries between adjacent enabled rows.
+- **Items inside a collapsed group** are skipped by Up/Down/Home/End/PageUp/
+  PageDown and by Shift-click / Shift-Arrow range extension in
+  `selection="multiple"`. A range that visually spans a collapsed group
+  lands on the visible rows only — hidden rows are never silently selected.
+
+```vue
+<List.Root selection="multiple">
+  <List.Group
+    v-for="g in groups"
+    :key="g.label"
+    :label="g.label"
+    v-model:collapsed="g.collapsed"
+  >
+    <List.Item v-for="row in g.rows" :key="row.id" :value="row.id">
+      {{ row.label }}
+    </List.Item>
+  </List.Group>
+</List.Root>
+```
+
+For non-text headers (icons, badges, counts) use `<List.GroupLabel>`. Its
+default slot replaces the `:label` prop and claims the group's
+`aria-labelledby` id automatically.
+
+```vue
+<List.Group v-model:collapsed="collapsed">
+  <List.GroupLabel>
+    <Badge :label="`${rows.length}`" theme="gray" />
+    Fruits
+  </List.GroupLabel>
+  <List.Item v-for="row in rows" :key="row.id" :value="row.id">
+    {{ row.label }}
+  </List.Item>
+</List.Group>
+```
+
+The group element exposes `data-collapsed` for Tailwind styling
+(`data-[collapsed]:bg-surface-gray-1`).
+
+<ComponentPreview name="List-Grouped" />
+
+### `<List.Group>`
+
+| Prop                | Type                 | Default | Description                                                            |
+| ------------------- | -------------------- | ------- | ---------------------------------------------------------------------- |
+| `as`                | `AsTag \| Component` | `'li'`  | Element/component to render.                                           |
+| `asChild`           | `boolean`            | `false` | Merge attributes into the slotted child element.                       |
+| `label`             | `string`             | —       | Plain-text label. Auto-renders a `<span>` with the `aria-labelledby` id.|
+| `v-model:collapsed` | `boolean`            | `false` | Whether the group is collapsed. Items inside stay registered but hidden.|
+
+Slot props on default:
+
+| Name        | Type         | Notes                                                  |
+| ----------- | ------------ | ------------------------------------------------------ |
+| `collapsed` | `boolean`    | Current collapsed flag.                                |
+| `toggle`    | `() => void` | Flip `collapsed` from inside the slot (custom header). |
+
+### `<List.GroupLabel>`
+
+| Prop      | Type                 | Default | Description                                      |
+| --------- | -------------------- | ------- | ------------------------------------------------ |
+| `as`      | `AsTag \| Component` | `'div'` | Element/component to render.                     |
+| `asChild` | `boolean`            | `false` | Merge attributes into the slotted child element. |
+
+The default slot replaces the `:label` prop on the enclosing `<List.Group>`.
+
 ## TypeScript
 
 The primitives are generic over the key shape, defaulting to `string`:
