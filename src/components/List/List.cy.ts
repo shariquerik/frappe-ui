@@ -296,3 +296,155 @@ describe('<List.Root> selection (slice 2)', () => {
     })
   })
 })
+
+interface ReorderMountOpts {
+  disabledIndexes?: number[]
+  onReorder?: (payload: { from: number; to: number; value: string }) => void
+}
+
+function mountReorderableList(opts: ReorderMountOpts = {}) {
+  const disabled = new Set(opts.disabledIndexes ?? [])
+  const Wrapper = defineComponent({
+    setup() {
+      return () =>
+        h(
+          List.Root as any,
+          {
+            'aria-label': 'Fruit (drag to reorder)',
+            onReorder: opts.onReorder,
+          },
+          {
+            default: () =>
+              items.map((label, i) =>
+                h(
+                  List.Item as any,
+                  {
+                    key: label,
+                    value: label,
+                    disabled: disabled.has(i),
+                    draggable: true,
+                    'data-cy': `item-${i}`,
+                  },
+                  { default: () => label },
+                ),
+              ),
+          },
+        )
+    },
+  })
+  cy.mount(Wrapper)
+}
+
+/**
+ * Fire a realistic HTML5 drag-and-drop sequence. Cypress doesn't have a
+ * built-in drag command; the native events with a shared DataTransfer
+ * mirror what the browser produces during a real user drag.
+ */
+function dragAndDrop(sourceCy: string, targetCy: string) {
+  const dataTransfer = new DataTransfer()
+  cy.get(`[data-cy="${sourceCy}"]`).trigger('dragstart', { dataTransfer })
+  cy.get(`[data-cy="${targetCy}"]`).trigger('dragover', { dataTransfer })
+  cy.get(`[data-cy="${targetCy}"]`).trigger('drop', { dataTransfer })
+  cy.get(`[data-cy="${sourceCy}"]`).trigger('dragend', { dataTransfer })
+}
+
+describe('<List.Root> reorder (slice 5)', () => {
+  it('emits @reorder with positional from/to and the source value on drop', () => {
+    const onReorder = cy.stub().as('reorder')
+    mountReorderableList({ onReorder })
+
+    dragAndDrop('item-0', 'item-3')
+
+    cy.get('@reorder').should('have.been.calledOnce')
+    cy.get('@reorder').should('have.been.calledWithMatch', {
+      from: 0,
+      to: 3,
+      value: 'Apple',
+    })
+  })
+
+  it('emits @reorder when dragging up the list', () => {
+    const onReorder = cy.stub().as('reorder')
+    mountReorderableList({ onReorder })
+
+    dragAndDrop('item-4', 'item-1')
+
+    cy.get('@reorder').should('have.been.calledOnce')
+    cy.get('@reorder').should('have.been.calledWithMatch', {
+      from: 4,
+      to: 1,
+      value: 'Peach',
+    })
+  })
+
+  it('renders draggable="true" on enabled items and skips disabled items', () => {
+    mountReorderableList({ disabledIndexes: [2] })
+
+    cy.get('[data-cy="item-0"]').should('have.attr', 'draggable', 'true')
+    cy.get('[data-cy="item-2"]').should('not.have.attr', 'draggable')
+  })
+
+  it('does not begin a drag from a disabled item', () => {
+    const onReorder = cy.stub().as('reorder')
+    mountReorderableList({ disabledIndexes: [2], onReorder })
+
+    dragAndDrop('item-2', 'item-0')
+
+    cy.get('@reorder').should('not.have.been.called')
+    cy.get('[data-cy="item-2"]').should('not.have.attr', 'data-dragging')
+  })
+
+  it('does not anchor a drop on a disabled item — no reorder fires', () => {
+    const onReorder = cy.stub().as('reorder')
+    mountReorderableList({ disabledIndexes: [2], onReorder })
+
+    dragAndDrop('item-0', 'item-2')
+
+    cy.get('@reorder').should('not.have.been.called')
+  })
+
+  it('sets data-dragging on the source and data-drop-target on the hover target', () => {
+    mountReorderableList()
+    const dataTransfer = new DataTransfer()
+
+    cy.get('[data-cy="item-0"]').trigger('dragstart', { dataTransfer })
+    cy.get('[data-cy="item-0"]').should('have.attr', 'data-dragging', '')
+
+    cy.get('[data-cy="item-3"]').trigger('dragover', { dataTransfer })
+    cy.get('[data-cy="item-3"]').should('have.attr', 'data-drop-target', '')
+
+    // Drop clears both attrs once the gesture completes.
+    cy.get('[data-cy="item-3"]').trigger('drop', { dataTransfer })
+    cy.get('[data-cy="item-0"]').trigger('dragend', { dataTransfer })
+    cy.get('[data-cy="item-0"]').should('not.have.attr', 'data-dragging')
+    cy.get('[data-cy="item-3"]').should('not.have.attr', 'data-drop-target')
+  })
+
+  it('does not emit @reorder when dropping onto the source itself', () => {
+    const onReorder = cy.stub().as('reorder')
+    mountReorderableList({ onReorder })
+
+    dragAndDrop('item-1', 'item-1')
+
+    cy.get('@reorder').should('not.have.been.called')
+  })
+
+  it('does not emit @reorder when the drag is cancelled (dragend without drop)', () => {
+    const onReorder = cy.stub().as('reorder')
+    mountReorderableList({ onReorder })
+
+    const dataTransfer = new DataTransfer()
+    cy.get('[data-cy="item-0"]').trigger('dragstart', { dataTransfer })
+    cy.get('[data-cy="item-2"]').trigger('dragover', { dataTransfer })
+    // No `drop` — user released over a non-drop target.
+    cy.get('[data-cy="item-0"]').trigger('dragend', { dataTransfer })
+
+    cy.get('@reorder').should('not.have.been.called')
+    cy.get('[data-cy="item-0"]').should('not.have.attr', 'data-dragging')
+  })
+
+  it('does not enable draggable when :draggable is not set', () => {
+    mountList()
+    cy.get('[data-cy="item-0"]').should('not.have.attr', 'draggable')
+  })
+})
