@@ -6,6 +6,12 @@
 
 export interface NavItem {
   disabled?: boolean
+  /**
+   * Item is structurally present (registered with Root) but hidden from
+   * keyboard nav — used by <List.Group v-model:collapsed> so collapsed-group
+   * rows are skipped without changing their `disabled` semantic.
+   */
+  skipped?: boolean
 }
 
 const PAGE_STEP = 10
@@ -25,6 +31,11 @@ export function isListboxNavKey(key: string): key is ListboxNavKey {
   return (LISTBOX_NAV_KEYS as readonly string[]).includes(key)
 }
 
+/** Predicate used by both nav and range-select to exclude an item. */
+export function isNavSkipped(item: NavItem): boolean {
+  return !!item.disabled || !!item.skipped
+}
+
 function findEnabled(
   items: NavItem[],
   start: number,
@@ -32,7 +43,7 @@ function findEnabled(
 ): number | null {
   let i = start
   while (i >= 0 && i < items.length) {
-    if (!items[i].disabled) return i
+    if (!isNavSkipped(items[i])) return i
     i += step
   }
   return null
@@ -117,7 +128,7 @@ export function nextTypeaheadIndex(
   for (let step = startOffset; step < n + startOffset; step++) {
     const idx = (origin + step) % n
     const item = items[idx]
-    if (item.disabled) continue
+    if (isNavSkipped(item)) continue
     const candidate = sameChar ? q[0] : q
     if (item.label.toLowerCase().startsWith(candidate)) return idx
   }
