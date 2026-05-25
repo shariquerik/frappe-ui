@@ -35,4 +35,6 @@ export type {
   ListRootContext,
   ListRootProps,
   ListItemProps,
+  ListReorderPayload,
+  ListDropZoneContext,
 } from './types'
