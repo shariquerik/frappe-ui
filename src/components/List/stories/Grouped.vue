@@ -107,8 +107,8 @@ const summary = computed(() =>
       <code class="rounded bg-surface-gray-2 px-1">{{ summary }}</code>
     </p>
     <p class="text-xs text-ink-gray-5">
-      Collapse a group and try Shift+Click across the boundary — the hidden
-      rows stay out of the selection.
+      Collapse a group and try Shift+Click across the boundary — the hidden rows
+      stay out of the selection.
     </p>
   </div>
 </template>

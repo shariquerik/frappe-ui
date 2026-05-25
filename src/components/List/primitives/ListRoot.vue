@@ -92,11 +92,7 @@ function firstEnabledId(): string | null {
 function registerItem(entry: ListItemEntry<Key>) {
   items.set(entry.id, entry)
   orderedIds.value = [...orderedIds.value, entry.id]
-  if (
-    activeId.value === null &&
-    !entry.disabled &&
-    !isItemSkipped(entry.id)
-  ) {
+  if (activeId.value === null && !entry.disabled && !isItemSkipped(entry.id)) {
     activeId.value = entry.id
   }
 }
@@ -111,10 +107,7 @@ function updateItem(id: string, patch: Partial<ListItemEntry<Key>>) {
   const existing = items.get(id)
   if (!existing) return
   Object.assign(existing, patch)
-  if (
-    id === activeId.value &&
-    (existing.disabled || isItemSkipped(id))
-  ) {
+  if (id === activeId.value && (existing.disabled || isItemSkipped(id))) {
     activeId.value = firstEnabledId()
   }
 }

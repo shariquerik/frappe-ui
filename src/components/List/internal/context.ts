@@ -14,9 +14,7 @@ export function useListRootContext<Key extends ListKey = ListKey>(
 ): ListRootContext<Key> {
   const ctx = inject(LIST_ROOT_CONTEXT, null)
   if (!ctx) {
-    throw new Error(
-      `[List] <${consumer}> must be used inside <List.Root>.`,
-    )
+    throw new Error(`[List] <${consumer}> must be used inside <List.Root>.`)
   }
   return ctx as ListRootContext<Key>
 }

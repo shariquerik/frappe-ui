@@ -91,7 +91,8 @@ export function extendRange<Key extends ListKey>(
   const anchorIndex =
     anchor == null ? -1 : items.findIndex((i) => i.value === anchor)
   const start = anchorIndex < 0 ? targetIndex : anchorIndex
-  const [lo, hi] = start <= targetIndex ? [start, targetIndex] : [targetIndex, start]
+  const [lo, hi] =
+    start <= targetIndex ? [start, targetIndex] : [targetIndex, start]
 
   const next = new Set(current)
   for (let i = lo; i <= hi; i++) {

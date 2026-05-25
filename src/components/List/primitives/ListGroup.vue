@@ -70,7 +70,8 @@ function toggle() {
       v-if="props.label !== undefined && !labelledBySlotUsed"
       :id="labelId"
       data-list-group-label
-    >{{ props.label }}</span>
+      >{{ props.label }}</span
+    >
     <!--
       Items stay mounted while collapsed so their selection state survives a
       collapse/expand cycle. The `hidden` attribute removes them visually and

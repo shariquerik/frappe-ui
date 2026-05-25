@@ -35,7 +35,11 @@ function mountList(opts: MountOpts = {}) {
             onActivate: opts.onActivate,
           },
           {
-            default: ({ select }: { select: (v: string, e?: MouseEvent) => void }) =>
+            default: ({
+              select,
+            }: {
+              select: (v: string, e?: MouseEvent) => void
+            }) =>
               items.map((label, i) =>
                 h(
                   List.Item as any,
@@ -181,13 +185,20 @@ describe('<List.Root> selection (slice 2)', () => {
       })
 
       cy.get('[data-cy="item-0"]').click()
-      cy.get('[data-cy="item-3"]').click().then(() => {
-        expect([...selectedRef.value].sort()).to.deep.equal(['Apple', 'Banana'])
-      })
+      cy.get('[data-cy="item-3"]')
+        .click()
+        .then(() => {
+          expect([...selectedRef.value].sort()).to.deep.equal([
+            'Apple',
+            'Banana',
+          ])
+        })
 
-      cy.get('[data-cy="item-0"]').click().then(() => {
-        expect([...selectedRef.value]).to.deep.equal(['Banana'])
-      })
+      cy.get('[data-cy="item-0"]')
+        .click()
+        .then(() => {
+          expect([...selectedRef.value]).to.deep.equal(['Banana'])
+        })
     })
 
     it('extends a range with Shift+Click from the last anchor', () => {
@@ -198,14 +209,16 @@ describe('<List.Root> selection (slice 2)', () => {
       })
 
       cy.get('[data-cy="item-0"]').click()
-      cy.get('[data-cy="item-3"]').click({ shiftKey: true }).then(() => {
-        expect([...selectedRef.value].sort()).to.deep.equal([
-          'Apple',
-          'Banana',
-          'Cherry',
-          'Mango',
-        ])
-      })
+      cy.get('[data-cy="item-3"]')
+        .click({ shiftKey: true })
+        .then(() => {
+          expect([...selectedRef.value].sort()).to.deep.equal([
+            'Apple',
+            'Banana',
+            'Cherry',
+            'Mango',
+          ])
+        })
     })
 
     it('extends a range with Shift+Arrow when the selection mode is multiple', () => {
@@ -253,9 +266,11 @@ describe('<List.Root> selection (slice 2)', () => {
         exposeSelected: (r) => (selectedRef = r),
       })
 
-      cy.get('[data-cy="item-2"]').click({ force: true }).then(() => {
-        expect([...selectedRef.value]).to.deep.equal([])
-      })
+      cy.get('[data-cy="item-2"]')
+        .click({ force: true })
+        .then(() => {
+          expect([...selectedRef.value]).to.deep.equal([])
+        })
     })
 
     it('does not select a disabled item via Shift+Click range', () => {
@@ -267,14 +282,16 @@ describe('<List.Root> selection (slice 2)', () => {
       })
 
       cy.get('[data-cy="item-0"]').click()
-      cy.get('[data-cy="item-3"]').click({ shiftKey: true }).then(() => {
-        expect([...selectedRef.value].sort()).to.deep.equal([
-          'Apple',
-          'Banana',
-          'Mango',
-        ])
-        expect(selectedRef.value.has('Cherry')).to.be.false
-      })
+      cy.get('[data-cy="item-3"]')
+        .click({ shiftKey: true })
+        .then(() => {
+          expect([...selectedRef.value].sort()).to.deep.equal([
+            'Apple',
+            'Banana',
+            'Mango',
+          ])
+          expect(selectedRef.value.has('Cherry')).to.be.false
+        })
     })
   })
 
@@ -333,7 +350,11 @@ function mountGrouped(opts: GroupedMountOpts) {
             'onUpdate:selected': (v: Set<string>) => (selected.value = v),
           },
           {
-            default: ({ select }: { select: (v: string, e?: MouseEvent) => void }) =>
+            default: ({
+              select,
+            }: {
+              select: (v: string, e?: MouseEvent) => void
+            }) =>
               opts.groups.map((g, gi) =>
                 h(
                   List.Group as any,
@@ -385,17 +406,11 @@ describe('<List.Group> (slice 3)', () => {
   const groups: GroupSpec[] = [
     {
       label: 'Fruits',
-      items: [
-        { value: 'apple' },
-        { value: 'mango' },
-      ],
+      items: [{ value: 'apple' }, { value: 'mango' }],
     },
     {
       label: 'Veggies',
-      items: [
-        { value: 'kale' },
-        { value: 'beet' },
-      ],
+      items: [{ value: 'kale' }, { value: 'beet' }],
     },
   ]
 

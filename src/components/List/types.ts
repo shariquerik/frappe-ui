@@ -61,8 +61,9 @@ export interface ListRootProps extends /* @vue-ignore */ PrimitiveProps {
   typeahead?: boolean
 }
 
-export interface ListItemProps<Key extends ListKey = ListKey>
-  extends /* @vue-ignore */ PrimitiveProps {
+export interface ListItemProps<
+  Key extends ListKey = ListKey,
+> extends /* @vue-ignore */ PrimitiveProps {
   /** Underlying element/component for Item. Defaults to <li>. */
   as?: PrimitiveProps['as'] | Component
   /** Merge attributes into the child element instead of rendering a wrapper. */
