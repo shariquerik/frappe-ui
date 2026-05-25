@@ -20,6 +20,7 @@ import {
 } from '../internal/selection'
 import { rootAriaAttrs } from '../internal/aria'
 import type {
+  ListGroupEntry,
   ListItemEntry,
   ListKey,
   ListRootContext,
@@ -64,11 +65,26 @@ const activeId = ref<string | null>(null)
 // Last value the user toggled/clicked — anchor for Shift+Click / Shift+Arrow
 // range extension. Lives in Vue state because keyboard.ts is stateless.
 const anchorValue = ref<Key | null>(null)
+// Group registry — populated by <List.Group> on mount. The reactive bumper
+// drives computed re-runs when a group's `collapsed` flips (the Map itself is
+// non-reactive for the same reason `items` is).
+const groups = new Map<string, ListGroupEntry>()
+const groupsVersion = ref(0)
+
+function isItemSkipped(id: string): boolean {
+  const entry = items.get(id)
+  if (!entry || entry.groupId == null) return false
+  const group = groups.get(entry.groupId)
+  return !!group?.collapsed
+}
 
 function firstEnabledId(): string | null {
+  // Touch the reactive bumper so this is recomputed when groups toggle.
+  // eslint-disable-next-line @typescript-eslint/no-unused-expressions
+  groupsVersion.value
   for (const id of orderedIds.value) {
     const entry = items.get(id)
-    if (entry && !entry.disabled) return id
+    if (entry && !entry.disabled && !isItemSkipped(id)) return id
   }
   return null
 }
@@ -76,7 +92,13 @@ function firstEnabledId(): string | null {
 function registerItem(entry: ListItemEntry<Key>) {
   items.set(entry.id, entry)
   orderedIds.value = [...orderedIds.value, entry.id]
-  if (activeId.value === null && !entry.disabled) activeId.value = entry.id
+  if (
+    activeId.value === null &&
+    !entry.disabled &&
+    !isItemSkipped(entry.id)
+  ) {
+    activeId.value = entry.id
+  }
 }
 
 function unregisterItem(id: string) {
@@ -89,7 +111,32 @@ function updateItem(id: string, patch: Partial<ListItemEntry<Key>>) {
   const existing = items.get(id)
   if (!existing) return
   Object.assign(existing, patch)
-  if (id === activeId.value && existing.disabled) {
+  if (
+    id === activeId.value &&
+    (existing.disabled || isItemSkipped(id))
+  ) {
+    activeId.value = firstEnabledId()
+  }
+}
+
+function registerGroup(entry: ListGroupEntry) {
+  groups.set(entry.id, entry)
+  groupsVersion.value++
+}
+
+function unregisterGroup(id: string) {
+  groups.delete(id)
+  groupsVersion.value++
+}
+
+function updateGroup(id: string, patch: Partial<ListGroupEntry>) {
+  const existing = groups.get(id)
+  if (!existing) return
+  Object.assign(existing, patch)
+  groupsVersion.value++
+  // If the active item just became hidden inside a now-collapsed group,
+  // move focus to the next visible row.
+  if (activeId.value && isItemSkipped(activeId.value)) {
     activeId.value = firstEnabledId()
   }
 }
@@ -107,7 +154,11 @@ function selectableItems(): SelectableItem<Key>[] {
   for (const id of orderedIds.value) {
     const entry = items.get(id)
     if (!entry || entry.value === undefined) continue
-    list.push({ value: entry.value, disabled: entry.disabled })
+    list.push({
+      value: entry.value,
+      disabled: entry.disabled,
+      skipped: isItemSkipped(id),
+    })
   }
   return list
 }
@@ -202,6 +253,7 @@ function handleTypeahead(event: KeyboardEvent) {
     const entry = items.get(id)
     return {
       disabled: entry?.disabled ?? false,
+      skipped: isItemSkipped(id),
       label: entry?.el?.textContent?.trim() ?? '',
     }
   })
@@ -241,6 +293,7 @@ function onKeyDown(event: KeyboardEvent) {
   if (isListboxNavKey(event.key)) {
     const navItems = ids.map((id) => ({
       disabled: items.get(id)?.disabled ?? false,
+      skipped: isItemSkipped(id),
     }))
     const currentIndex = activeId.value ? ids.indexOf(activeId.value) : -1
     const nextIndex = nextListboxIndex(navItems, currentIndex, event.key)
@@ -297,9 +350,13 @@ const context: ListRootContext<Key> = {
   selected: selectedModel,
   items,
   orderedIds,
+  groups,
   registerItem,
   unregisterItem,
   updateItem,
+  registerGroup,
+  unregisterGroup,
+  updateGroup,
   setActive,
   isSelected,
   select,

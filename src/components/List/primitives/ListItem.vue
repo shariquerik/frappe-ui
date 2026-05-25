@@ -8,7 +8,7 @@ import {
   watch,
 } from 'vue'
 import { Primitive } from '../internal/asChild'
-import { useListRootContext } from '../internal/context'
+import { useListGroupContext, useListRootContext } from '../internal/context'
 import { itemAriaAttrs } from '../internal/aria'
 import type { ListItemProps, ListKey } from '../types'
 
@@ -28,6 +28,7 @@ defineSlots<{
 }>()
 
 const ctx = useListRootContext<Key>('List.Item')
+const groupCtx = useListGroupContext()
 
 const uid = getCurrentInstance()!.uid
 const id = `list-item-${uid}`
@@ -51,6 +52,7 @@ ctx.registerItem({
   value: props.value,
   disabled: props.disabled,
   el: null,
+  groupId: groupCtx?.id ?? null,
 })
 
 onMounted(() => {
