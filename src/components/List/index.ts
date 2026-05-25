@@ -5,6 +5,9 @@ import ListRoot from './primitives/ListRoot.vue'
 import ListItem from './primitives/ListItem.vue'
 import ListGroup from './primitives/ListGroup.vue'
 import ListGroupLabel from './primitives/ListGroupLabel.vue'
+import ListColumns from './primitives/ListColumns.vue'
+import ListColumnHeader from './primitives/ListColumnHeader.vue'
+import ListCell from './primitives/ListCell.vue'
 
 // Legacy shape: `<List ...>` rendered the old ListView. The name now belongs
 // to the new compound namespace, so direct usage of <List> emits a one-time
@@ -29,18 +32,29 @@ export const List = Object.assign(LegacyList, {
   Item: ListItem,
   Group: ListGroup,
   GroupLabel: ListGroupLabel,
+  Columns: ListColumns,
+  ColumnHeader: ListColumnHeader,
+  Cell: ListCell,
 })
 
 export type {
-  ListKey,
-  ListSelection,
+  Column,
   ListAriaMode,
-  ListItemEntry,
-  ListGroupEntry,
+  ListCellProps,
+  ListColumnAlign,
+  ListColumnHeaderProps,
+  ListColumnsContext,
+  ListColumnsProps,
   ListGroupContext,
+  ListGroupEntry,
+  ListGroupLabelProps,
+  ListGroupProps,
+  ListItemEntry,
+  ListItemProps,
+  ListKey,
   ListRootContext,
   ListRootProps,
-  ListItemProps,
-  ListGroupProps,
-  ListGroupLabelProps,
+  ListSelection,
+  ListSort,
+  ListSortDirection,
 } from './types'

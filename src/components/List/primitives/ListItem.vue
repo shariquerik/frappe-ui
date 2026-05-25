@@ -80,12 +80,24 @@ const selected = computed(() =>
 )
 
 const ariaAttrs = computed(() => {
-  const attrs = itemAriaAttrs({
-    id,
-    active: active.value,
-    disabled: props.disabled,
-    selected: ctx.selection === 'none' ? undefined : selected.value,
-  })
+  const selectedForAria =
+    ctx.selection === 'none' ? undefined : selected.value
+  const attrs =
+    ctx.ariaMode.value === 'grid'
+      ? itemAriaAttrs({
+          id,
+          active: active.value,
+          disabled: props.disabled,
+          selected: selectedForAria,
+          mode: 'grid',
+        })
+      : itemAriaAttrs({
+          id,
+          active: active.value,
+          disabled: props.disabled,
+          selected: selectedForAria,
+          mode: 'listbox',
+        })
   return {
     ...attrs,
     'data-selected': selected.value ? '' : undefined,
