@@ -31,9 +31,10 @@ import { List } from 'frappe-ui'
   [reka-ui composition](https://www.reka-ui.com/docs/guides/composition)).
 - No default click handler — wire interactions yourself with `@click`.
 
-Selection, grouping, tabular layout (`<List.Columns>` / `<List.Cell>`),
-reordering, and the editable-cell story all arrive in subsequent slices and
-build on these two primitives.
+Selection, grouping, reordering, and the editable-cell story all arrive in
+subsequent slices and build on these two primitives. Tabular layout
+(`<List.Columns>` / `<List.ColumnHeader>` / `<List.Cell>`) is documented
+below.
 
 ## Default
 
@@ -106,6 +107,74 @@ affordances.
 Type-to-search is opt-in via `typeahead` on `<List.Root>` — when enabled,
 printable keys advance the active item to the next label matching the typed
 prefix (resets after ~500ms idle).
+
+## Tabular layout
+
+Adding `<List.Columns>` anywhere inside `<List.Root>` auto-promotes Root to
+**grid ARIA mode**:
+
+- `<List.Root>` becomes `role="grid"`.
+- `<List.Item>` becomes `role="row"`.
+- `<List.Cell>` becomes `role="gridcell"`.
+- `<List.ColumnHeader>` becomes `role="columnheader"`.
+
+Roving `tabindex` moves to cells, and arrow keys upgrade to 2D navigation
+(`ArrowLeft` / `ArrowRight` between cells in a row, `ArrowUp` / `ArrowDown`
+between same-column cells in adjacent rows). `Home` / `End` move within the
+current row; `Ctrl`/`Cmd` + `Home` / `End` jump to the grid corners. Row
+selection from the listbox mode continues to work.
+
+### Basic table
+
+<ComponentPreview name="List-Tabular" />
+
+### Sortable
+
+`<List.Columns>` holds three v-models that the consumer fully owns:
+
+```vue
+<List.Columns v-model:sort="sort" v-model:widths="widths" v-model:order="order">
+  <tr>
+    <List.ColumnHeader v-for="c in columns" :key="c.key" :column="c">
+      {{ c.label }}
+    </List.ColumnHeader>
+  </tr>
+</List.Columns>
+```
+
+- `sort: Array<{ key, direction }>` — current sort spec. Click on a sortable
+  header cycles `none → asc → desc → none` via the
+  `cycleSort` helper.
+- `widths: Record<key, number | string>` — per-column width override that
+  beats the declared `column.width`. Dragging the resize handle on a
+  `resizable` column writes here.
+- `order: Array<key>` — explicit column order; unmentioned keys keep their
+  declared position relative to each other.
+
+The `<List.ColumnHeader>` exposes a `data-sort` attribute (`asc` / `desc` /
+`none`) for styling and emits `aria-sort` for screen readers. Sorting the
+underlying rows is the consumer's responsibility — primitives never touch
+the data array.
+
+<ComponentPreview name="List-Sortable" />
+
+### `Column` interface
+
+```ts
+interface Column<Key extends string = string> {
+  key: Key
+  label: string
+  width?: number | string
+  align?: 'left' | 'center' | 'right'
+  resizable?: boolean
+  hidden?: boolean
+  sortable?: boolean
+}
+```
+
+Per P10, there are no function-returning-VNode fields on `Column`. Anything
+beyond the listed scalars is rendered via the default slot on
+`<List.ColumnHeader>` / `<List.Cell>`.
 
 ## Styling
 
@@ -195,3 +264,58 @@ Slot props on default:
 | `disabled` | `boolean`                                  | Mirrors the `:disabled` prop.                                          |
 | `selected` | `boolean`                                  | Whether this item's value is in the selection set.                     |
 | `select`   | `(event?) => void`                         | Shorthand for `root.select(value, event)` — already disabled-aware.    |
+
+### `<List.Columns>`
+
+| Prop              | Type                                       | Default     | Description                                                       |
+| ----------------- | ------------------------------------------ | ----------- | ----------------------------------------------------------------- |
+| `as`              | `AsTag \| Component`                       | `'thead'`   | Element/component to render.                                      |
+| `asChild`         | `boolean`                                  | `false`     | Merge attributes into the slotted child element.                  |
+| `v-model:sort`    | `Array<{ key, direction }>`                | `[]`        | Current sort spec; mutated by header clicks.                      |
+| `v-model:widths`  | `Record<key, number \| string>`            | `{}`        | Per-column width overrides; mutated by resize-handle drags.       |
+| `v-model:order`   | `Array<key>`                               | `[]`        | Explicit column order; mutated by header drag-reorder.            |
+
+Slot props on default:
+
+| Name      | Type                              | Notes                                                       |
+| --------- | --------------------------------- | ----------------------------------------------------------- |
+| `sort`    | `Array<{ key, direction }>`       | Mirror of the `sort` v-model — convenient for inline reads. |
+| `widths`  | `Record<key, number \| string>`   | Mirror of the `widths` v-model.                             |
+| `order`   | `Array<key>`                      | Mirror of the `order` v-model.                              |
+
+### `<List.ColumnHeader>`
+
+| Prop      | Type                 | Default | Description                              |
+| --------- | -------------------- | ------- | ---------------------------------------- |
+| `as`      | `AsTag \| Component` | `'th'`  | Element/component to render.             |
+| `asChild` | `boolean`            | `false` | Merge attributes into the slotted child. |
+| `column`  | `Column<Key>`        | —       | Column descriptor.                       |
+
+Attributes surfaced for styling / a11y:
+
+| Attribute    | Values                          | When                                                    |
+| ------------ | ------------------------------- | ------------------------------------------------------- |
+| `data-sort`  | `'asc' \| 'desc' \| 'none'`     | Always present — drives sort indicator styling.         |
+| `aria-sort`  | `'ascending' \| 'descending' \| 'none'` | Mirrors `data-sort` in ARIA terms.              |
+
+Slot props on default:
+
+| Name        | Type                            | Notes                                                          |
+| ----------- | ------------------------------- | -------------------------------------------------------------- |
+| `sort`      | `'asc' \| 'desc' \| 'none'`     | Current sort direction for this column.                        |
+| `sortable`  | `boolean`                       | Mirror of `column.sortable`.                                   |
+| `resizable` | `boolean`                       | Mirror of `column.resizable`.                                  |
+
+### `<List.Cell>`
+
+| Prop      | Type                 | Default | Description                              |
+| --------- | -------------------- | ------- | ---------------------------------------- |
+| `as`      | `AsTag \| Component` | `'td'`  | Element/component to render.             |
+| `asChild` | `boolean`            | `false` | Merge attributes into the slotted child. |
+| `column`  | `Column<Key>`        | —       | Column descriptor — supplies width / align / order via Root. |
+
+Slot props on default:
+
+| Name     | Type      | Notes                                                  |
+| -------- | --------- | ------------------------------------------------------ |
+| `active` | `boolean` | Currently the grid-mode roving-tabindex / focus cell.  |
