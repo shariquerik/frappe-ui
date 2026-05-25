@@ -3,6 +3,9 @@ import ListView from '../ListView/ListView.vue'
 import { warnDeprecated } from '../../utils/warnDeprecated'
 import ListRoot from './primitives/ListRoot.vue'
 import ListItem from './primitives/ListItem.vue'
+import ListColumns from './primitives/ListColumns.vue'
+import ListColumnHeader from './primitives/ListColumnHeader.vue'
+import ListCell from './primitives/ListCell.vue'
 
 // Legacy shape: `<List ...>` rendered the old ListView. The name now belongs
 // to the new compound namespace, so direct usage of <List> emits a one-time
@@ -25,14 +28,25 @@ const LegacyList = defineComponent({
 export const List = Object.assign(LegacyList, {
   Root: ListRoot,
   Item: ListItem,
+  Columns: ListColumns,
+  ColumnHeader: ListColumnHeader,
+  Cell: ListCell,
 })
 
 export type {
-  ListKey,
-  ListSelection,
+  Column,
   ListAriaMode,
+  ListCellProps,
+  ListColumnAlign,
+  ListColumnHeaderProps,
+  ListColumnsContext,
+  ListColumnsProps,
   ListItemEntry,
+  ListItemProps,
+  ListKey,
   ListRootContext,
   ListRootProps,
-  ListItemProps,
+  ListSelection,
+  ListSort,
+  ListSortDirection,
 } from './types'

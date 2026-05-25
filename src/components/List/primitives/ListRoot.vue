@@ -1,11 +1,13 @@
 <script setup lang="ts" generic="Key extends ListKey = string">
-import { computed, provide, ref, watch } from 'vue'
+import { computed, provide, ref, shallowRef, watch } from 'vue'
 import { Primitive } from '../internal/asChild'
 import { LIST_ROOT_CONTEXT } from '../internal/context'
 import {
   isActivationKey,
+  isGridNavKey,
   isListboxNavKey,
   isToggleKey,
+  nextGridCursor,
   nextListboxIndex,
   nextTypeaheadIndex,
 } from '../internal/keyboard'
@@ -20,6 +22,8 @@ import {
 } from '../internal/selection'
 import { rootAriaAttrs } from '../internal/aria'
 import type {
+  ListAriaMode,
+  ListColumnsContext,
   ListItemEntry,
   ListKey,
   ListRootContext,
@@ -64,6 +68,87 @@ const activeId = ref<string | null>(null)
 // Last value the user toggled/clicked — anchor for Shift+Click / Shift+Arrow
 // range extension. Lives in Vue state because keyboard.ts is stateless.
 const anchorValue = ref<Key | null>(null)
+
+// Slice 4: tabular layer. `columns` is null until a <List.Columns> registers,
+// at which point the Root flips to grid ARIA mode and 2D keyboard nav.
+// `shallowRef` keeps Vue from recursively unwrapping the inner Refs on the
+// ListColumnsContext shape — Cells need the live `Ref` accessors.
+const columnsCtx = shallowRef<ListColumnsContext | null>(null)
+const ariaMode = computed<ListAriaMode>(() =>
+  columnsCtx.value ? 'grid' : 'listbox',
+)
+// Cell registry — a flat map keyed by "rowId::columnKey" so grid-mode focus
+// can resolve the DOM element to focus when the cursor moves.
+const cellEls = new Map<string, HTMLElement>()
+const activeCell = ref<{ rowId: string; columnKey: string } | null>(null)
+
+function cellKey(rowId: string, columnKey: string) {
+  return `${rowId}::${columnKey}`
+}
+
+function registerColumns(ctx: ListColumnsContext) {
+  columnsCtx.value = ctx
+  return () => {
+    if (columnsCtx.value === ctx) columnsCtx.value = null
+  }
+}
+
+function registerCell(rowId: string, columnKey: string, el: HTMLElement) {
+  cellEls.set(cellKey(rowId, columnKey), el)
+  // Seed the active cell on first registration so roving tabindex lands
+  // somewhere reasonable before the user reaches for the keyboard.
+  if (activeCell.value === null && activeId.value === rowId) {
+    activeCell.value = { rowId, columnKey }
+  }
+}
+
+function unregisterCell(rowId: string, columnKey: string) {
+  cellEls.delete(cellKey(rowId, columnKey))
+  if (
+    activeCell.value?.rowId === rowId &&
+    activeCell.value.columnKey === columnKey
+  ) {
+    activeCell.value = null
+  }
+}
+
+function setActiveCell(
+  rowId: string | null,
+  columnKey: string | null,
+  opts: { focus?: boolean } = {},
+) {
+  if (rowId === null || columnKey === null) {
+    activeCell.value = null
+    return
+  }
+  activeCell.value = { rowId, columnKey }
+  // Keep row-level active in sync so listbox-mode siblings (e.g. selection
+  // helpers reading `activeId`) continue to work.
+  activeId.value = rowId
+  if (opts.focus) {
+    const el = cellEls.get(cellKey(rowId, columnKey))
+    el?.focus()
+  }
+}
+
+function visibleColumnKeys(): string[] {
+  const ctx = columnsCtx.value
+  if (!ctx) return []
+  // Use the explicit order if provided; otherwise infer from registered
+  // cell keys for the first row. The Columns primitive owns the canonical
+  // order via its v-model, so this fallback only kicks in before the
+  // consumer hands one in.
+  if (ctx.order.value.length > 0) return [...ctx.order.value]
+  for (const id of orderedIds.value) {
+    const keys: string[] = []
+    for (const k of cellEls.keys()) {
+      const [rid, col] = k.split('::')
+      if (rid === id) keys.push(col)
+    }
+    if (keys.length > 0) return keys
+  }
+  return []
+}
 
 function firstEnabledId(): string | null {
   for (const id of orderedIds.value) {
@@ -238,6 +323,36 @@ function onKeyDown(event: KeyboardEvent) {
     return
   }
 
+  // Grid mode: 2D arrow nav across cells. Falls through to the listbox
+  // handler when the key is not a recognised grid nav key (e.g. PageDown).
+  if (ariaMode.value === 'grid' && isGridNavKey(event.key)) {
+    const cols = visibleColumnKeys()
+    if (cols.length === 0) return
+    const navItems = ids.map((id) => ({
+      disabled: items.get(id)?.disabled ?? false,
+    }))
+    const cursor = activeCell.value
+    const currentRow = cursor ? ids.indexOf(cursor.rowId) : -1
+    const currentCol = cursor ? cols.indexOf(cursor.columnKey) : -1
+    const next = nextGridCursor(
+      navItems,
+      cols.length,
+      {
+        row: currentRow < 0 ? 0 : currentRow,
+        col: currentCol < 0 ? 0 : currentCol,
+      },
+      {
+        key: event.key,
+        ctrlKey: event.ctrlKey,
+        metaKey: event.metaKey,
+      },
+    )
+    if (next === null) return
+    event.preventDefault()
+    setActiveCell(ids[next.row], cols[next.col], { focus: true })
+    return
+  }
+
   if (isListboxNavKey(event.key)) {
     const navItems = ids.map((id) => ({
       disabled: items.get(id)?.disabled ?? false,
@@ -291,16 +406,22 @@ const selectedValue = computed(() =>
 )
 
 const context: ListRootContext<Key> = {
-  ariaMode: 'listbox',
+  ariaMode,
   selection: props.selection,
   activeId,
+  activeCell,
   selected: selectedModel,
   items,
   orderedIds,
   registerItem,
   unregisterItem,
   updateItem,
+  registerColumns,
+  columns: columnsCtx,
   setActive,
+  setActiveCell,
+  registerCell,
+  unregisterCell,
   isSelected,
   select,
   toggle,
@@ -312,13 +433,20 @@ const context: ListRootContext<Key> = {
 provide(LIST_ROOT_CONTEXT, context)
 
 const ariaAttrs = computed(() =>
-  rootAriaAttrs({
-    mode: 'listbox',
-    multiSelectable: props.selection === 'multiple',
-    ariaLabel: props.ariaLabel,
-    ariaLabelledby: props.ariaLabelledby,
-    activeDescendantId: activeId.value,
-  }),
+  ariaMode.value === 'grid'
+    ? rootAriaAttrs({
+        mode: 'grid',
+        multiSelectable: props.selection === 'multiple',
+        ariaLabel: props.ariaLabel,
+        ariaLabelledby: props.ariaLabelledby,
+      })
+    : rootAriaAttrs({
+        mode: 'listbox',
+        multiSelectable: props.selection === 'multiple',
+        ariaLabel: props.ariaLabel,
+        ariaLabelledby: props.ariaLabelledby,
+        activeDescendantId: activeId.value,
+      }),
 )
 </script>
 

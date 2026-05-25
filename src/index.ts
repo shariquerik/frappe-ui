@@ -54,6 +54,23 @@ export * from './components/TextEditor'
 export * from './components/TimePicker'
 export { default as ListView } from './components/ListView/ListView.vue'
 export { List } from './components/List'
+export type {
+  Column,
+  ListAriaMode,
+  ListCellProps,
+  ListColumnAlign,
+  ListColumnHeaderProps,
+  ListColumnsContext,
+  ListColumnsProps,
+  ListItemEntry,
+  ListItemProps,
+  ListKey,
+  ListRootContext,
+  ListRootProps,
+  ListSelection,
+  ListSort,
+  ListSortDirection,
+} from './components/List'
 export { default as ListHeader } from './components/ListView/ListHeader.vue'
 export { default as ListHeaderItem } from './components/ListView/ListHeaderItem.vue'
 export { default as ListEmptyState } from './components/ListView/ListEmptyState.vue'
