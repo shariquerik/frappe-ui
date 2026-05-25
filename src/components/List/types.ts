@@ -12,6 +12,14 @@ export interface ListItemEntry<Key extends ListKey = ListKey> {
   value: Key | undefined
   disabled: boolean
   el: HTMLElement | null
+  /** The id of the enclosing <List.Group>, if any. */
+  groupId: string | null
+}
+
+export interface ListGroupEntry {
+  id: string
+  /** Whether the group is currently collapsed; items inside are hidden + skipped. */
+  collapsed: boolean
 }
 
 export interface ListRootContext<Key extends ListKey = ListKey> {
@@ -21,9 +29,13 @@ export interface ListRootContext<Key extends ListKey = ListKey> {
   selected: Ref<Set<Key>>
   items: Map<string, ListItemEntry<Key>>
   orderedIds: { value: string[] }
+  groups: Map<string, ListGroupEntry>
   registerItem: (entry: ListItemEntry<Key>) => void
   unregisterItem: (id: string) => void
   updateItem: (id: string, patch: Partial<ListItemEntry<Key>>) => void
+  registerGroup: (entry: ListGroupEntry) => void
+  unregisterGroup: (id: string) => void
+  updateGroup: (id: string, patch: Partial<ListGroupEntry>) => void
   setActive: (id: string | null, opts?: { focus?: boolean }) => void
   isSelected: (value: Key | undefined) => boolean
   /** Selection helpers — exposed both on Root slot scope and here for Item. */
@@ -59,4 +71,31 @@ export interface ListItemProps<Key extends ListKey = ListKey>
   value?: Key
   /** Skip the item in keyboard navigation and selection. */
   disabled?: boolean
+}
+
+export interface ListGroupProps extends /* @vue-ignore */ PrimitiveProps {
+  /** Underlying element/component for Group. Defaults to <li>. */
+  as?: PrimitiveProps['as'] | Component
+  /** Merge attributes into the child element instead of rendering a wrapper. */
+  asChild?: boolean
+  /** Plain-text group label. Use <List.GroupLabel> for non-text content. */
+  label?: string
+}
+
+export interface ListGroupLabelProps extends /* @vue-ignore */ PrimitiveProps {
+  /** Underlying element/component for the label. Defaults to <div>. */
+  as?: PrimitiveProps['as'] | Component
+  /** Merge attributes into the child element instead of rendering a wrapper. */
+  asChild?: boolean
+}
+
+/**
+ * Context provided by <List.Group> to nested <List.Item> and <List.GroupLabel>.
+ * Items use it to register their `groupId`; GroupLabel uses it to claim the
+ * `aria-labelledby` id.
+ */
+export interface ListGroupContext {
+  id: string
+  labelId: string
+  setLabelledBySlot: (used: boolean) => void
 }

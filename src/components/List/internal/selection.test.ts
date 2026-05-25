@@ -119,6 +119,51 @@ describe('selectAll', () => {
     expect(selectAll(items, 'single')).toEqual(new Set<string>())
     expect(selectAll(items, 'none')).toEqual(new Set<string>())
   })
+
+  it('excludes items in collapsed groups (skipped=true)', () => {
+    const withCollapsed: SelectableItem<string>[] = [
+      { value: 'a' },
+      { value: 'b', skipped: true },
+      { value: 'c', skipped: true },
+      { value: 'd' },
+    ]
+    expect(selectAll(withCollapsed, 'multiple')).toEqual(new Set(['a', 'd']))
+  })
+})
+
+describe('extendRange — collapsed-group skip', () => {
+  // Items 'b' and 'c' belong to a collapsed group. A range from 'a' to 'd'
+  // should land on 'a' and 'd' only — hidden rows must not be silently picked.
+  const grouped: SelectableItem<string>[] = [
+    { value: 'a' },
+    { value: 'b', skipped: true },
+    { value: 'c', skipped: true },
+    { value: 'd' },
+    { value: 'e' },
+  ]
+
+  it('skips collapsed-group items inside the anchor→target range', () => {
+    const next = extendRange(new Set<string>(), grouped, 'a', 'd', 'multiple')
+    expect(next).toEqual(new Set(['a', 'd']))
+    expect(next.has('b')).toBe(false)
+    expect(next.has('c')).toBe(false)
+  })
+
+  it('still skips collapsed items when the range runs upward', () => {
+    const next = extendRange(new Set<string>(), grouped, 'e', 'a', 'multiple')
+    expect(next).toEqual(new Set(['a', 'd', 'e']))
+  })
+
+  it('treats `disabled` and `skipped` symmetrically inside a range', () => {
+    const mixed: SelectableItem<string>[] = [
+      { value: 'a' },
+      { value: 'b', disabled: true },
+      { value: 'c', skipped: true },
+      { value: 'd' },
+    ]
+    const next = extendRange(new Set<string>(), mixed, 'a', 'd', 'multiple')
+    expect(next).toEqual(new Set(['a', 'd']))
+  })
 })
 
 describe('clearSelection', () => {

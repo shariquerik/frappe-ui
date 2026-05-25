@@ -13,6 +13,19 @@ import type { ListKey, ListSelection } from '../types'
 export interface SelectableItem<Key extends ListKey = ListKey> {
   value: Key
   disabled?: boolean
+  /**
+   * Item is structurally present but excluded from range-select and
+   * select-all — used for items inside a collapsed <List.Group> so a
+   * shift-extended range across the collapsed region does not silently
+   * select hidden rows.
+   */
+  skipped?: boolean
+}
+
+function isSelectableSkipped<Key extends ListKey>(
+  item: SelectableItem<Key>,
+): boolean {
+  return !!item.disabled || !!item.skipped
 }
 
 function clamp<Key extends ListKey>(
@@ -83,7 +96,7 @@ export function extendRange<Key extends ListKey>(
   const next = new Set(current)
   for (let i = lo; i <= hi; i++) {
     const item = items[i]
-    if (!item.disabled) next.add(item.value)
+    if (!isSelectableSkipped(item)) next.add(item.value)
   }
   return next
 }
@@ -95,7 +108,7 @@ export function selectAll<Key extends ListKey>(
   if (mode !== 'multiple') return new Set()
   const next = new Set<Key>()
   for (const item of items) {
-    if (!item.disabled) next.add(item.value)
+    if (!isSelectableSkipped(item)) next.add(item.value)
   }
   return next
 }

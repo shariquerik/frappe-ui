@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   isActivationKey,
   isListboxNavKey,
+  isNavSkipped,
   isToggleKey,
   LISTBOX_NAV_KEYS,
   nextListboxIndex,
@@ -124,6 +125,55 @@ describe('nextListboxIndex', () => {
       }))
       expect(nextListboxIndex(items, 0, 'PageDown')).toBe(9)
     })
+  })
+})
+
+describe('isNavSkipped', () => {
+  it('is true when the item is disabled', () => {
+    expect(isNavSkipped({ disabled: true })).toBe(true)
+  })
+
+  it('is true when the item is inside a collapsed group', () => {
+    expect(isNavSkipped({ skipped: true })).toBe(true)
+  })
+
+  it('is false for a plain enabled item', () => {
+    expect(isNavSkipped({})).toBe(false)
+    expect(isNavSkipped({ disabled: false, skipped: false })).toBe(false)
+  })
+})
+
+describe('nextListboxIndex — collapsed-group skip', () => {
+  it('skips items marked `skipped` (collapsed-group members)', () => {
+    const items = [
+      { disabled: false },
+      { skipped: true },
+      { skipped: true },
+      { disabled: false },
+    ]
+    expect(nextListboxIndex(items, 0, 'ArrowDown')).toBe(3)
+    expect(nextListboxIndex(items, 3, 'ArrowUp')).toBe(0)
+  })
+
+  it('Home / End skip a leading / trailing collapsed group', () => {
+    const items = [
+      { skipped: true },
+      { disabled: false },
+      { disabled: false },
+      { skipped: true },
+    ]
+    expect(nextListboxIndex(items, 2, 'Home')).toBe(1)
+    expect(nextListboxIndex(items, 0, 'End')).toBe(2)
+  })
+
+  it('treats `disabled` and `skipped` symmetrically', () => {
+    const items = [
+      { disabled: false },
+      { disabled: true },
+      { skipped: true },
+      { disabled: false },
+    ]
+    expect(nextListboxIndex(items, 0, 'ArrowDown')).toBe(3)
   })
 })
 
