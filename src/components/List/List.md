@@ -107,15 +107,69 @@ Type-to-search is opt-in via `typeahead` on `<List.Root>` — when enabled,
 printable keys advance the active item to the next label matching the typed
 prefix (resets after ~500ms idle).
 
+## Reordering
+
+`<List.Item :draggable>` opts a row into native HTML5 drag-and-drop. The
+primitive never mutates your row array — `<List.Root>` emits `@reorder` with
+the positional `from` / `to` indices and the source item's `:value`. The
+consumer applies the move and feeds the new order back through `v-for`.
+
+Disabled items cannot be drag sources or drop targets. The drag handle is
+consumer-owned: the primitive exposes `data-dragging` on the source and
+`data-drop-target` on the current hover row, and you style from there.
+
+<ComponentPreview name="List-Reorderable" />
+
+```vue
+<script setup lang="ts">
+import { ref } from 'vue'
+import { List } from 'frappe-ui'
+
+const rows = ref([
+  { id: '1', label: 'Apple' },
+  { id: '2', label: 'Mango' },
+  { id: '3', label: 'Banana' },
+])
+
+function onReorder({ from, to }: { from: number; to: number; value: string }) {
+  if (from === to) return
+  const next = rows.value.slice()
+  const [moved] = next.splice(from, 1)
+  next.splice(to, 0, moved)
+  rows.value = next
+}
+</script>
+
+<template>
+  <List.Root @reorder="onReorder">
+    <List.Item
+      v-for="row in rows"
+      :key="row.id"
+      :value="row.id"
+      :draggable="true"
+      class="data-[dragging]:opacity-50 data-[drop-target]:bg-surface-gray-3"
+    >
+      {{ row.label }}
+    </List.Item>
+  </List.Root>
+</template>
+```
+
+`from` and `to` are indices into the **currently visible** item list — when
+`<List.Group>` is present, rows inside a collapsed group are excluded and
+cannot anchor a drop.
+
 ## Styling
 
 State is surfaced as data attributes on each item:
 
-| Attribute        | When                                           |
-| ---------------- | ---------------------------------------------- |
-| `data-active`    | Item is the roving-tabindex / keyboard cursor. |
-| `data-disabled`  | Item has `:disabled` set.                      |
-| `data-selected`  | Item is currently in the selection set.        |
+| Attribute            | When                                                |
+| -------------------- | --------------------------------------------------- |
+| `data-active`        | Item is the roving-tabindex / keyboard cursor.      |
+| `data-disabled`      | Item has `:disabled` set.                           |
+| `data-selected`      | Item is currently in the selection set.             |
+| `data-dragging`      | Item is the current `:draggable` drag source.       |
+| `data-drop-target`   | Item is the current drop hover target during drag.  |
 
 Style with `data-[active]:…` / `data-[disabled]:…` / `data-[selected]:…`
 Tailwind variants:
@@ -160,10 +214,11 @@ type DealId = string & { __brand: 'DealId' }
 
 Events:
 
-| Event                  | Payload | Fires on              |
-| ---------------------- | ------- | --------------------- |
-| `update:selected`      | `Set<Key>` | Any selection mutation.                                                          |
-| `activate`             | `Key`   | Enter on the active item.                                                            |
+| Event                  | Payload                                  | Fires on              |
+| ---------------------- | ---------------------------------------- | --------------------- |
+| `update:selected`      | `Set<Key>`                               | Any selection mutation.                                              |
+| `activate`             | `Key`                                    | Enter on the active item.                                            |
+| `reorder`              | `{ from: number; to: number; value: Key }` | A drag completes onto a valid drop target (`from`/`to` are visible-list indices). |
 
 Slot props on default:
 
@@ -180,12 +235,13 @@ Slot props on default:
 
 ### `<List.Item>`
 
-| Prop       | Type                 | Default | Description                                              |
-| ---------- | -------------------- | ------- | -------------------------------------------------------- |
-| `as`       | `AsTag \| Component` | `'li'`  | Element/component to render.                             |
-| `asChild`  | `boolean`            | `false` | Merge attributes into the slotted child element.         |
-| `value`    | `Key`                | —       | Stable identity. Required once selection is enabled.     |
-| `disabled` | `boolean`            | `false` | Skip in keyboard navigation; sets `aria-disabled=true`.  |
+| Prop        | Type                 | Default | Description                                                                       |
+| ----------- | -------------------- | ------- | --------------------------------------------------------------------------------- |
+| `as`        | `AsTag \| Component` | `'li'`  | Element/component to render.                                                      |
+| `asChild`   | `boolean`            | `false` | Merge attributes into the slotted child element.                                  |
+| `value`     | `Key`                | —       | Stable identity. Required once selection is enabled.                              |
+| `disabled`  | `boolean`            | `false` | Skip in keyboard navigation; sets `aria-disabled=true`. Disables drag and drop.   |
+| `draggable` | `boolean`            | `false` | Make this row a native HTML5 drag source and drop target. Pairs with `@reorder`.  |
 
 Slot props on default:
 
