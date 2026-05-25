@@ -123,3 +123,88 @@ export function nextTypeaheadIndex(
   }
   return null
 }
+
+/**
+ * Grid 2D keyboard navigation. Pure: given the row registry, number of cols
+ * and the current `(row, col)` cursor, returns the next position — or `null`
+ * if the key is unhandled or no valid target exists. The Vue layer maps
+ * `(row, col)` back to a cell element for focus.
+ *
+ * Disabled rows are skipped on Up/Down. Left/Right clamp at row boundaries.
+ * Ctrl/Cmd+Home and Ctrl/Cmd+End jump to grid corners (with row
+ * disabled-skip); plain Home/End move within the current row.
+ */
+export const GRID_NAV_KEYS = [
+  'ArrowDown',
+  'ArrowUp',
+  'ArrowLeft',
+  'ArrowRight',
+  'Home',
+  'End',
+] as const
+
+export type GridNavKey = (typeof GRID_NAV_KEYS)[number]
+
+export function isGridNavKey(key: string): key is GridNavKey {
+  return (GRID_NAV_KEYS as readonly string[]).includes(key)
+}
+
+export interface GridCursor {
+  row: number
+  col: number
+}
+
+export interface GridKeyEvent {
+  key: string
+  ctrlKey?: boolean
+  metaKey?: boolean
+}
+
+export function nextGridCursor(
+  rows: NavItem[],
+  numCols: number,
+  current: GridCursor,
+  event: GridKeyEvent,
+): GridCursor | null {
+  if (rows.length === 0 || numCols <= 0) return null
+  if (!isGridNavKey(event.key)) return null
+
+  const lastRow = rows.length - 1
+  const lastCol = numCols - 1
+  const ctrl = !!event.ctrlKey || !!event.metaKey
+
+  switch (event.key) {
+    case 'ArrowLeft':
+      if (current.col <= 0) return null
+      return { row: current.row, col: current.col - 1 }
+    case 'ArrowRight':
+      if (current.col >= lastCol) return null
+      return { row: current.row, col: current.col + 1 }
+    case 'ArrowDown': {
+      const nextRow = findEnabled(rows, current.row + 1, 1)
+      if (nextRow === null) return null
+      return { row: nextRow, col: current.col }
+    }
+    case 'ArrowUp': {
+      const nextRow = findEnabled(rows, current.row - 1, -1)
+      if (nextRow === null) return null
+      return { row: nextRow, col: current.col }
+    }
+    case 'Home': {
+      if (ctrl) {
+        const r = findEnabled(rows, 0, 1)
+        if (r === null) return null
+        return { row: r, col: 0 }
+      }
+      return { row: current.row, col: 0 }
+    }
+    case 'End': {
+      if (ctrl) {
+        const r = findEnabled(rows, lastRow, -1)
+        if (r === null) return null
+        return { row: r, col: lastCol }
+      }
+      return { row: current.row, col: lastCol }
+    }
+  }
+}

@@ -1,9 +1,12 @@
 import { describe, expect, it } from 'vitest'
 import {
+  GRID_NAV_KEYS,
   isActivationKey,
+  isGridNavKey,
   isListboxNavKey,
   isToggleKey,
   LISTBOX_NAV_KEYS,
+  nextGridCursor,
   nextListboxIndex,
   nextTypeaheadIndex,
 } from './keyboard'
@@ -192,5 +195,149 @@ describe('nextTypeaheadIndex', () => {
 
   it('returns null when nothing matches', () => {
     expect(nextTypeaheadIndex(items, 0, 'z')).toBeNull()
+  })
+})
+
+describe('isGridNavKey', () => {
+  it('recognizes every key in GRID_NAV_KEYS', () => {
+    for (const key of GRID_NAV_KEYS) {
+      expect(isGridNavKey(key)).toBe(true)
+    }
+  })
+
+  it('rejects unrelated keys', () => {
+    for (const key of ['Enter', ' ', 'Tab', 'a', 'PageDown']) {
+      expect(isGridNavKey(key)).toBe(false)
+    }
+  })
+})
+
+describe('nextGridCursor', () => {
+  const rows = enabled(4)
+  const numCols = 3
+
+  it('returns null for empty rows or zero cols', () => {
+    expect(
+      nextGridCursor([], 3, { row: 0, col: 0 }, { key: 'ArrowRight' }),
+    ).toBeNull()
+    expect(
+      nextGridCursor(rows, 0, { row: 0, col: 0 }, { key: 'ArrowRight' }),
+    ).toBeNull()
+  })
+
+  it('returns null for unhandled keys', () => {
+    expect(
+      nextGridCursor(rows, numCols, { row: 0, col: 0 }, { key: 'Enter' }),
+    ).toBeNull()
+    expect(
+      nextGridCursor(rows, numCols, { row: 0, col: 0 }, { key: ' ' }),
+    ).toBeNull()
+  })
+
+  describe('ArrowRight / ArrowLeft (within row)', () => {
+    it('moves between cells', () => {
+      expect(
+        nextGridCursor(rows, numCols, { row: 1, col: 0 }, { key: 'ArrowRight' }),
+      ).toEqual({ row: 1, col: 1 })
+      expect(
+        nextGridCursor(rows, numCols, { row: 1, col: 2 }, { key: 'ArrowLeft' }),
+      ).toEqual({ row: 1, col: 1 })
+    })
+
+    it('clamps at row boundaries (does not wrap)', () => {
+      expect(
+        nextGridCursor(rows, numCols, { row: 1, col: 0 }, { key: 'ArrowLeft' }),
+      ).toBeNull()
+      expect(
+        nextGridCursor(rows, numCols, { row: 1, col: 2 }, { key: 'ArrowRight' }),
+      ).toBeNull()
+    })
+  })
+
+  describe('ArrowDown / ArrowUp (same-column)', () => {
+    it('moves to the next row keeping the column', () => {
+      expect(
+        nextGridCursor(rows, numCols, { row: 0, col: 1 }, { key: 'ArrowDown' }),
+      ).toEqual({ row: 1, col: 1 })
+      expect(
+        nextGridCursor(rows, numCols, { row: 2, col: 1 }, { key: 'ArrowUp' }),
+      ).toEqual({ row: 1, col: 1 })
+    })
+
+    it('clamps at top / bottom (does not wrap)', () => {
+      expect(
+        nextGridCursor(rows, numCols, { row: 0, col: 0 }, { key: 'ArrowUp' }),
+      ).toBeNull()
+      expect(
+        nextGridCursor(rows, numCols, { row: 3, col: 0 }, { key: 'ArrowDown' }),
+      ).toBeNull()
+    })
+
+    it('skips disabled rows', () => {
+      const mixed = [
+        { disabled: false },
+        { disabled: true },
+        { disabled: true },
+        { disabled: false },
+      ]
+      expect(
+        nextGridCursor(mixed, numCols, { row: 0, col: 2 }, { key: 'ArrowDown' }),
+      ).toEqual({ row: 3, col: 2 })
+    })
+  })
+
+  describe('Home / End', () => {
+    it('Home / End move within the current row', () => {
+      expect(
+        nextGridCursor(rows, numCols, { row: 1, col: 2 }, { key: 'Home' }),
+      ).toEqual({ row: 1, col: 0 })
+      expect(
+        nextGridCursor(rows, numCols, { row: 1, col: 0 }, { key: 'End' }),
+      ).toEqual({ row: 1, col: 2 })
+    })
+
+    it('Ctrl/Cmd+Home / Ctrl+End move to grid corners', () => {
+      expect(
+        nextGridCursor(
+          rows,
+          numCols,
+          { row: 2, col: 1 },
+          { key: 'Home', ctrlKey: true },
+        ),
+      ).toEqual({ row: 0, col: 0 })
+      expect(
+        nextGridCursor(
+          rows,
+          numCols,
+          { row: 1, col: 1 },
+          { key: 'End', metaKey: true },
+        ),
+      ).toEqual({ row: 3, col: 2 })
+    })
+
+    it('Ctrl+Home / Ctrl+End skip disabled rows at the edges', () => {
+      const mixed = [
+        { disabled: true },
+        { disabled: false },
+        { disabled: false },
+        { disabled: true },
+      ]
+      expect(
+        nextGridCursor(
+          mixed,
+          numCols,
+          { row: 2, col: 0 },
+          { key: 'Home', ctrlKey: true },
+        ),
+      ).toEqual({ row: 1, col: 0 })
+      expect(
+        nextGridCursor(
+          mixed,
+          numCols,
+          { row: 1, col: 0 },
+          { key: 'End', ctrlKey: true },
+        ),
+      ).toEqual({ row: 2, col: 2 })
+    })
   })
 })
