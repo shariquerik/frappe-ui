@@ -10,7 +10,15 @@ export default defineConfig({
   plugins: [
     vue(),
     lucideIcons({
-      componentGlobs: ['src/components/**/*.vue', '!src/components/**/stories/*.vue'],
+      // The <List.*> family is only consumed through the `List` namespace
+      // import, not as auto-imported global tags. Skipping it here also
+      // prevents `List/primitives/ListItem.vue` from colliding with the
+      // unrelated `components/ListItem.vue` global.
+      componentGlobs: [
+        'src/components/**/*.vue',
+        '!src/components/**/stories/*.vue',
+        '!src/components/List/**/*.vue',
+      ],
     }),
     coverageEnabled &&
       istanbul({
